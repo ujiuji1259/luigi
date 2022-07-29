@@ -518,6 +518,26 @@ class Task(metaclass=Register):
 
         return params_str
 
+    def get_task_as_string(self, only_significant=False, only_public=False):
+        """
+        Convert a task to string like `MyTask(param1=1.5, param2='5')`
+        """
+
+        params = self.get_params()
+        param_values = self.get_param_values(params, [], self.param_kwargs)
+
+        repr_parts = []
+        param_objs = dict(params)
+        for param_name, param_value in param_values:
+            if (((not only_significant) or param_objs[param_name].significant)
+                    and ((not only_public) or param_objs[param_name].visibility == ParameterVisibility.PUBLIC)
+                    and param_objs[param_name].visibility != ParameterVisibility.PRIVATE):
+                repr_parts.append('%s=%s' % (param_name, param_objs[param_name].serialize(param_value)))
+
+        task_str = '{}({})'.format(self.get_task_family(), ', '.join(repr_parts))
+
+        return task_str
+
     def _get_param_visibilities(self):
         param_visibilities = {}
         params = dict(self.get_params())
@@ -559,19 +579,7 @@ class Task(metaclass=Register):
         """
         Build a task representation like `MyTask(param1=1.5, param2='5')`
         """
-        params = self.get_params()
-        param_values = self.get_param_values(params, [], self.param_kwargs)
-
-        # Build up task id
-        repr_parts = []
-        param_objs = dict(params)
-        for param_name, param_value in param_values:
-            if param_objs[param_name].significant:
-                repr_parts.append('%s=%s' % (param_name, param_objs[param_name].serialize(param_value)))
-
-        task_str = '{}({})'.format(self.get_task_family(), ', '.join(repr_parts))
-
-        return task_str
+        return self.get_task_as_string(only_significant=True, only_public=False)
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.task_id == other.task_id
