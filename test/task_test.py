@@ -14,18 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import collections
 import doctest
 import pickle
 import warnings
-
-from helpers import unittest, LuigiTestCase, with_config
 from datetime import datetime, timedelta
 
 import luigi
 import luigi.task
 import luigi.util
-import collections
+from luigi.parameter import ParameterVisibility
 from luigi.task_register import load_task
+
+from helpers import LuigiTestCase, unittest, with_config
 
 
 class DummyTask(luigi.Task):
@@ -56,6 +57,13 @@ class DefaultInsignificantParamTask(luigi.Task):
     necessary_param = luigi.Parameter(significant=False)
 
 
+class DummyTaskB(luigi.Task):
+    normal = luigi.Parameter(default='1')
+    non_public = luigi.Parameter(default='2', visibility=ParameterVisibility.PRIVATE)
+    insignificant = luigi.Parameter(default='3', significant=False)
+    insignificant_non_public = luigi.Parameter(default='4', visibility=ParameterVisibility.PRIVATE, significant=False)
+
+
 class TaskTest(unittest.TestCase):
 
     def test_tasks_doctest(self):
@@ -71,6 +79,13 @@ class TaskTest(unittest.TestCase):
         original = DefaultInsignificantParamTask(**params)
         other = DefaultInsignificantParamTask.from_str_params(params)
         self.assertEqual(original, other)
+
+    def test_task_as_string(self):
+        task = DummyTaskB()
+        self.assertEqual(task.get_task_as_string(), 'DummyTaskB(normal=1, non_public=2, insignificant=3, insignificant_non_public=4)')
+        self.assertEqual(task.get_task_as_string(only_significant=True), 'DummyTaskB(normal=1, non_public=2)')
+        self.assertEqual(task.get_task_as_string(only_public=True), 'DummyTaskB(normal=1, insignificant=3)')
+        self.assertEqual(task.get_task_as_string(only_significant=True, only_public=True), 'DummyTaskB(normal=1)')
 
     def test_task_missing_necessary_param(self):
         with self.assertRaises(luigi.parameter.MissingParameterException):
