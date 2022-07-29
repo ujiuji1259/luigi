@@ -159,7 +159,7 @@ class TaskProcess(multiprocessing.Process):
                 return new_deps
 
     def run(self):
-        logger.info('[pid %s] Worker %s running   %s', os.getpid(), self.worker_id, self.task)
+        logger.info('[pid %s] Worker %s running   %s', os.getpid(), self.worker_id, self.task.get_task_as_string(only_significant=True, only_public=True))
 
         if self.use_multiprocessing:
             # Need to have different random seeds if running in separate processes
@@ -218,7 +218,7 @@ class TaskProcess(multiprocessing.Process):
                     Event.PROCESSING_TIME, self.task, time.time() - t0)
                 expl = self.task.on_success()
                 logger.info('[pid %s] Worker %s done      %s', os.getpid(),
-                            self.worker_id, self.task)
+                            self.worker_id, self.task.get_task_as_string(only_significant=True, only_public=True))
                 self.task.trigger_event(Event.SUCCESS, self.task)
 
         except KeyboardInterrupt:
@@ -232,7 +232,7 @@ class TaskProcess(multiprocessing.Process):
                 (self.task.task_id, status, expl, missing, new_deps))
 
     def _handle_run_exception(self, ex):
-        logger.exception("[pid %s] Worker %s failed    %s", os.getpid(), self.worker_id, self.task)
+        logger.exception("[pid %s] Worker %s failed    %s", os.getpid(), self.worker_id, self.task.get_task_as_string(only_significant=True, only_public=True))
         self.task.trigger_event(Event.FAILURE, self.task, ex)
         return self.task.on_failure(ex)
 
@@ -424,7 +424,7 @@ def check_complete(task, out_queue, completion_cache=None):
     """
     Checks if task is complete, puts the result to out_queue, optionally using the completion cache.
     """
-    logger.debug("Checking if %s is complete", task)
+    logger.debug("Checking if %s is complete", task.get_task_as_string(only_significant=True, only_public=True))
     try:
         is_complete = check_complete_cached(task, completion_cache)
     except Exception:
@@ -685,15 +685,15 @@ class Worker:
             raise TaskException('Task of class %s not initialized. Did you override __init__ and forget to call super(...).__init__?' % task.__class__.__name__)
 
     def _log_complete_error(self, task, tb):
-        log_msg = "Will not run {task} or any dependencies due to error in complete() method:\n{tb}".format(task=task, tb=tb)
+        log_msg = "Will not run {task} or any dependencies due to error in complete() method:\n{tb}".format(task=task.get_task_as_string(only_significant=True, only_public=True), tb=tb)
         logger.warning(log_msg)
 
     def _log_dependency_error(self, task, tb):
-        log_msg = "Will not run {task} or any dependencies due to error in deps() method:\n{tb}".format(task=task, tb=tb)
+        log_msg = "Will not run {task} or any dependencies due to error in deps() method:\n{tb}".format(task=task.get_task_as_string(only_significant=True, only_public=True), tb=tb)
         logger.warning(log_msg)
 
     def _log_unexpected_error(self, task):
-        logger.exception("Luigi unexpected framework error while scheduling %s", task)  # needs to be called from within except clause
+        logger.exception("Luigi unexpected framework error while scheduling %s", task.get_task_as_string(only_significant=True, only_public=True))  # needs to be called from within except clause
 
     def _announce_scheduling_failure(self, task, expl):
         try:
@@ -827,7 +827,7 @@ class Worker:
 
     def _add(self, task, is_complete):
         if self._config.task_limit is not None and len(self._scheduled_tasks) >= self._config.task_limit:
-            logger.warning('Will not run %s or any dependencies due to exceeded task-limit of %d', task, self._config.task_limit)
+            logger.warning('Will not run %s or any dependencies due to exceeded task-limit of %d', task.get_task_as_string(only_significant=True, only_public=True), self._config.task_limit)
             deps = None
             status = UNKNOWN
             runnable = False
@@ -865,7 +865,7 @@ class Worker:
                 task.trigger_event(Event.DEPENDENCY_MISSING, task)
                 logger.warning('Data for %s does not exist (yet?). The task is an '
                                'external data dependency, so it cannot be run from'
-                               ' this luigi process.', task)
+                               ' this luigi process.', task.get_task_as_string(only_significant=True, only_public=True))
 
             else:
                 try:
